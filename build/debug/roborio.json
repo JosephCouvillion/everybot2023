@@ -1,0 +1,57 @@
+[
+  {
+    "type": "native",
+    "name": "frcCpp",
+    "port": 8349,
+    "target": "10.18.18.2",
+    "launchfile": "C:\\Users\\Southwood Robotics\\Desktop\\frc test 2023\\arcade_drive\\arcade_drive\\build\\exe\\frcUserProgram\\release\\frcUserProgram",
+    "gdb": "C:\\Users\\Public\\wpilib\\2023\\roborio\\bin\\arm-frc2023-linux-gnueabi-gdb.exe",
+    "sysroot": "C:\\Users\\Public\\wpilib\\2023\\roborio",
+    "srcpaths": [
+      "C:\\Users\\Southwood Robotics\\Desktop\\frc test 2023\\arcade_drive\\arcade_drive\\src\\main\\cpp",
+      "C:\\Users\\Southwood Robotics\\Desktop\\frc test 2023\\arcade_drive\\arcade_drive\\src\\main\\include"
+    ],
+    "headerpaths": [
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\81df9960ee2b909360e912e05501a42b\\transformed\\wpilibNewCommands-cpp-2023.4.2-headers",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\3c7ef5bc235d2c22ba89a13b20f1e885\\transformed\\REVLib-cpp-2023.1.3-headers",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\c3aaf361c2aeffb6fb3007640b734a77\\transformed\\REVLib-driver-2023.1.3-headers",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\e1b1e183c2cd12e272ecd47ac650aad9\\transformed\\wpiapi-cpp-5.30.4-headers",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\a99f96af7727d290175f41adfa032688\\transformed\\api-cpp-5.30.4-headers",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\262b5115c0899083df7773fad02fab24\\transformed\\cci-5.30.4-headers",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\0f4a76457e5db56b52cf2a4bb407a309\\transformed\\tools-23.0.5-headers",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\9eb7bedce17ad8a091a6f2d4e40c5048\\transformed\\navx-frc-cpp-2023.0.3-headers",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\538a092a889937e6057c2b3b38edd30b\\transformed\\wpilibc-cpp-2023.4.2-headers",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\539c607716ed573399eee4636e8592a8\\transformed\\ntcore-cpp-2023.4.2-headers",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\d9c465bc18e10e4e5dfad54f1e2f2701\\transformed\\hal-cpp-2023.4.2-headers",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\c7fcda093bc02fdf0bbe2af74503b093\\transformed\\wpimath-cpp-2023.4.2-headers",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\410c8bf13393039cc73bc9fcca390d31\\transformed\\wpinet-cpp-2023.4.2-headers",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\5b6a05c13d457d5366d5da0311a983a6\\transformed\\wpiutil-cpp-2023.4.2-headers",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\e88c8cf999323fa754246ed0014b64b0\\transformed\\netcomm-2023.3.0-headers",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\5ae5cd842bca6a9712f69a710cf33bb7\\transformed\\chipobject-2023.3.0-headers",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\b18921766438ae03f8001fbf5f1d0d6a\\transformed\\visa-2023.3.0-headers",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\8b8bc1e8beaad8111c7d4375974208aa\\transformed\\cameraserver-cpp-2023.4.2-headers",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\8feae03798ba64adf15629d2d3d2e016\\transformed\\cscore-cpp-2023.4.2-headers",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\7d90c8a39aa805bbfc8aef02303f86dd\\transformed\\apriltag-cpp-2023.4.2-headers",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\c85f37b37ca62d00809b79195969f9d9\\transformed\\opencv-cpp-4.6.0-4-headers",
+      "C:\\Users\\Southwood Robotics\\Desktop\\frc test 2023\\arcade_drive\\arcade_drive\\src\\main\\include"
+    ],
+    "libpaths": [
+      "C:\\Users\\Southwood Robotics\\Desktop\\frc test 2023\\arcade_drive\\arcade_drive\\build\\install\\frcUserProgram\\release\\lib",
+      "C:\\Users\\Southwood Robotics\\Desktop\\frc test 2023\\arcade_drive\\arcade_drive\\build\\install\\frcUserProgram\\release"
+    ],
+    "libsrcpaths": [
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\177a102d43ca665de30e882809959ddd\\transformed\\wpilibNewCommands-cpp-2023.4.2-sources",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\3148c4403d1c571e938803094ea5dc46\\transformed\\navx-frc-cpp-2023.0.3-sources",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\499d9733d705a70d9bb94e3bcab389bb\\transformed\\wpilibc-cpp-2023.4.2-sources",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\5cc132a05a6e0dbd40bce469ca45c639\\transformed\\ntcore-cpp-2023.4.2-sources",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\c592ac30fe151aa790a1450ddffbb9c0\\transformed\\hal-cpp-2023.4.2-sources",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\b92ca0082ca7c6692b086503ec7adb16\\transformed\\wpimath-cpp-2023.4.2-sources",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\3d57508a7ef602b487a3b1aea7bb2791\\transformed\\wpinet-cpp-2023.4.2-sources",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\536c1951290d0d4f616265b9f640ba86\\transformed\\wpiutil-cpp-2023.4.2-sources",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\cc35a1353b67f8aac8e3eab03fbe95e9\\transformed\\cameraserver-cpp-2023.4.2-sources",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\073bf47d270f583040a73e0b9c3e4e5f\\transformed\\cscore-cpp-2023.4.2-sources",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\f01d22e12881475bdb028f96833fc27e\\transformed\\apriltag-cpp-2023.4.2-sources",
+      "C:\\Users\\Southwood Robotics\\.gradle\\caches\\transforms-3\\9c1621044dea072845a54ccbe5690761\\transformed\\opencv-cpp-4.6.0-4-sources"
+    ]
+  }
+]
