@@ -2,10 +2,10 @@
 // Open Source Software; you can modify and/or share it under the terms of
 // the WPILib BSD license file in the root directory of this project.
 
+#include <fmt/core.h>
 #include <frc/XboxController.h>
 #include <frc/TimedRobot.h>
 #include <frc/drive/DifferentialDrive.h>
-#include <frc/smartdashboard/SmartDashboard.h>
 #include <rev/CANSparkMax.h>
 #include <frc/motorcontrol/MotorControllerGroup.h>
 #include <ctre/phoenix/motorcontrol/can/WPI_VictorSPX.h>
@@ -13,6 +13,11 @@
 #include <frc/DigitalInput.h>
 #include <frc/AddressableLED.h>
 #include "AHRS.h"
+#include <frc/smartdashboard/SmartDashboard.h>
+#include <frc/smartdashboard/SendableChooser.h>
+#include <cameraserver/CameraServer.h>
+#include <wpi/raw_ostream.h>
+#include <frc/Timer.h>
 
 /**
  * This is a demo program showing the use of the DifferentialDrive class.
@@ -33,31 +38,61 @@ class Robot : public frc::TimedRobot {
   frc::DigitalInput ArmLimit{9};
 
   frc::XboxController m_stick{0};
-  frc::XboxController m_stick1{1};
+  //frc::XboxController m_stick1{1};
 
   AHRS *gyro;
   
   rev::SparkMaxRelativeEncoder m_armEncoder = m_armMotor.GetEncoder();
-  //rev::SparkMaxPIDController m_pidController = m_armMotor.GetPIDController();
 
-  frc::AddressableLED Led0{4};
-  std::array<frc::AddressableLED::LEDData, 6> LedBuff;
+  const int numLEDs = 16;
+  frc::AddressableLED Led0{9};
+  std::array<frc::AddressableLED::LEDData, 16> LedBuff;
 
-  double armPos = -10;
+  double desiredArmPos = -10;   
 
-  const double INTAKE_OUT = 1.0;
-  const double INTAKE_HOLD = 0.07;
-  const int ARM_CURRENT = 20;
-  const int INTAKE_CURRENT = 30;
-  const int INTAKE_CURRENT_HOLD = 5;
-
+  const double INTAKE_OUT = 1.0;   //speed (range -1 to 1)
+  const double INTAKE_HOLD = 0.07; //speed (range near 0) --> not currently using
+  const int ARM_CURRENT = 40; //amps (range 0-40)
+  const int INTAKE_CURRENT = 30;  //amps (range 0-40)
+  const int INTAKE_CURRENT_HOLD = 5; //amps (range nearish 5)
+  double currArmPos;
   int lastGamePiece;
+
   enum GamePiece{ CONE, CUBE, NONE};
-  //double kP = 0.1, kI = 0, kD = 0, kIz = 0, kFF = 10, kMaxOutput = 1, kMinOuput = -1;
-  //frc::SmartDashboard SmartDashboard;
+private:
+  frc::SendableChooser<std::string> m_chooser;
+  const std::string kAutoNameDefault = "Nothing";
+  const std::string kauto1 = "High Cube Balance";
+  const std::string kauto2 = "Hign Cube Leave";
+  const std::string kauto3 = "High Cone Balance";
+  const std::string kauto4 = "Hign Cone Leave";
+  std::string m_autoSelected;
+  frc::Timer m_autoTimer;
+  
+
 
 public:
   void RobotInit() override {
+    frc::SmartDashboard::PutString(" Mode ", "RobotInit");
+
+    // Camera Stream:
+    #if defined(__linux__)
+      frc::CameraServer::StartAutomaticCapture();
+      
+      //GetInstance()->StartAutomaticCapture();
+    #else
+      wpi::errs() << "Vision only available on Linux.\n";
+      wpi::errs().flush();
+    #endif
+
+    // Initialize Autonomous Mode Options:
+    m_chooser.SetDefaultOption(kAutoNameDefault, kAutoNameDefault);
+    m_chooser.AddOption(kauto1, kauto1);
+    m_chooser.AddOption(kauto2, kauto2);
+    m_chooser.AddOption(kauto3, kauto3);
+    m_chooser.AddOption(kauto4, kauto4);
+    frc::SmartDashboard::PutData("Auto Modes", &m_chooser);
+
     // We need to invert one side of the drivetrain so that positive voltages
     // result in both sides moving forward. Depending on how your robot's
     // gearbox is constructed, you might have to invert the left side instead.
@@ -72,14 +107,8 @@ public:
     m_armMotor.SetIdleMode(rev::CANSparkMax::IdleMode::kBrake);
     m_intakeMotor.SetIdleMode(rev::CANSparkMax::IdleMode::kBrake);
     
-    //m_pidController.SetP(kP);
-    //m_pidController.SetI(kI);
-    //m_pidController.SetD(kD);
-    //m_pidController.SetIZone(kIz);
-    //m_pidController.SetFF(kFF);
-    //m_pidController.SetOutputRange(kMinOuput, kMaxOutput);
  
-    Led0.SetLength(6);
+    Led0.SetLength(numLEDs);
     Led0.SetData(LedBuff);
     Led0.Start();
 
@@ -89,9 +118,92 @@ public:
     while (gyro->IsCalibrating());
   }
 
+  void RobotPeriodic() override{
+    frc::SmartDashboard::PutNumber(" Pitch2 ", gyro->GetPitch());
+    frc::SmartDashboard::PutNumber("arm pos", m_armEncoder.GetPosition());
+    frc::SmartDashboard::PutNumber("currArmPos", currArmPos);
+    frc::SmartDashboard::PutNumber("desiredArmPos", desiredArmPos);
+    frc::SmartDashboard::PutNumber(" roll ", gyro->GetRoll());
+    frc::SmartDashboard::PutNumber(" Y ", gyro->GetRawGyroY());
+    frc::SmartDashboard::PutNumber(" Limit ", ArmLimit.Get());
+    frc::SmartDashboard::PutString(" Mode ", "TeleopPeriodic");
+    //m_robotDrive.Feed();  //Probably not needed
+  }
+  
+  void DisabledPeriodic() override {
+    Red();
+    frc::SmartDashboard::PutString(" Mode ", "Disabled");
+  }
+
+  void AutonomousInit() {
+    // Set Auto Mode To Text Selected In Smart Dashboard:
+    m_autoSelected = m_chooser.GetSelected();
+    fmt::print("Auto selected: {}\n", m_autoSelected);
+
+    Blue(); //if robot stays blue, limit switch triggers
+    frc::SmartDashboard::PutString(" Mode ", "AutoInit");
+
+    m_armMotor.SetSmartCurrentLimit(20);
+    m_armMotor.Set(-0.6);  //set the motor speed
+    while(ArmLimit.Get() == 0){
+      //limit switch
+      frc::SmartDashboard::PutNumber(" Limit ", ArmLimit.Get());
+    }
+    m_armEncoder.SetPosition(0);  //when the arm hits the limit switch
+    m_armMotor.Set(0.0);
+
+    Red();  // we've inited, but haven't started running autonomous
+
+    m_armMotor.SetSmartCurrentLimit(20);
+    desiredArmPos = 1;
+
+    // Start Timer:
+    m_autoTimer.Reset();
+    m_autoTimer.Start();
+    
+    Blue();
+  }
+
+  void AutonomousPeriodic()
+  {
+    // High Goal 
+    if (m_autoSelected == kauto1)
+    {
+      AutoHighCubeBalance();
+    } 
+    if (m_autoSelected == kauto2)
+    {
+      AutoHighCubeLeave();
+    }
+    
+    if (m_autoSelected == kauto3)
+    {
+      AutoHighConeBalance();
+    }
+    if (m_autoSelected == kauto4)
+    {
+      AutoHighConeLeave();
+    }
+    
+    //checks arm position and holds it in place
+    currArmPos = m_armEncoder.GetPosition();
+    if(currArmPos > desiredArmPos)
+    {
+      SetArmMotor(-(currArmPos - desiredArmPos)/20); //Proportional done the old fashion way
+      //Yellow();        
+    }else{
+      SetArmMotor((desiredArmPos - currArmPos)/20);
+      //Blue();
+    }
+  }
+
   void TeleopInit() override {
-    m_armMotor.SetSmartCurrentLimit(2);
-    m_armMotor.Set(-0.2);
+    Blue();
+
+    frc::SmartDashboard::PutString(" Mode ", "TeleopInit");
+
+    m_armMotor.SetSmartCurrentLimit(20);
+    m_armMotor.Set(-0.6);
     while(ArmLimit.Get() == 0){
       //limit switch
       frc::SmartDashboard::PutNumber(" Limit ", ArmLimit.Get());
@@ -99,135 +211,103 @@ public:
     m_armEncoder.SetPosition(0);
     m_armMotor.Set(0.0);
 
-    for(int i = 0; i < 6; i++) {
-      LedBuff[i].SetRGB(255, 0, 0);
-    }
-    Led0.SetData(LedBuff);
+    Red();
+
     m_armMotor.SetSmartCurrentLimit(20);
-    //m_pidController.SetReference(1, rev::CANSparkMax::ControlType::kPosition);
-    armPos = 1;
+    desiredArmPos = 1;
   }
+
   void TeleopPeriodic() override {
     double armSpeed;
     double intakeSpeed;
-    //int armAmps;
-    int intakeAmps;
+    int intakeAmps = 30;
+    int ArmPos;  
 
-    if (m_stick1.GetAButton())
-    {
-      armPos = 0;
-    }
-    if (m_stick1.GetBButton())
-    {
-      armPos = 20;
-    }
-    if (m_stick1.GetXButton())
-    {
-      armPos = 30;
-    }
-    if (m_stick1.GetYButton())
-    {
-      armPos = 40;
-    }
+    ArmPos = -5;  // No control has been actuated
 
-    if (m_stick1.GetLeftBumper())
-    {
-      intakeSpeed = INTAKE_OUT;
-      intakeAmps = INTAKE_CURRENT;
-      lastGamePiece = CUBE;      
-    } else if (m_stick1.GetRightBumper())
-    {
-      intakeSpeed = -INTAKE_OUT;
-      intakeAmps = INTAKE_CURRENT;
-      lastGamePiece = CONE;      
-    } else if (lastGamePiece == CUBE)
-    {
-      intakeSpeed = INTAKE_HOLD;
-      intakeAmps = INTAKE_CURRENT_HOLD;
-    } else if (lastGamePiece == CONE)
-    {
-      intakeSpeed = -INTAKE_HOLD;
-      intakeAmps = INTAKE_CURRENT_HOLD;
-    } else{
-      intakeSpeed = 0;
-      intakeAmps = 0;
-    }
+    Green();
 
+    if(ArmLimit.Get() == 1){
+      //limit switch
+      m_armEncoder.SetPosition(0);
+      frc::SmartDashboard::PutNumber(" Limit ", ArmLimit.Get());
+    }
 
     // Autonomous Balancing Program: 
     if (m_stick.GetStartButton())
     {
-      // Pitch Values Between 85 & 95 Is Balanced.
-      if (gyro->GetPitch() < 85.0)
-        m_robotDrive.ArcadeDrive(0.4, 0);
-      else if (gyro->GetPitch() > 95.0)
-        m_robotDrive.ArcadeDrive(-0.4, 0);
-      else 
-        m_robotDrive.ArcadeDrive(0, 0);
+      AutoBalanceForward();
     }
     // Drive With Controller:
     else
     {
+      /*  Arcade drive 
       m_robotDrive.ArcadeDrive(-m_stick.GetLeftY(), -m_stick.GetLeftX());
+      */  
+      //Grand Theft Auto
+      double speed =  m_stick.GetRightTriggerAxis() - m_stick.GetLeftTriggerAxis();
+      m_robotDrive.ArcadeDrive(speed, -m_stick.GetLeftX());
+      frc::SmartDashboard::PutNumber(" speed ", speed);
     }
-    // Courtesy Of Caleb Taylor
-    
+    // Courtesy Of Caleb Taylor  
+
     // Arm/Intake Controls: ---------------------------------------------------------
     if (m_stick.GetXButton())
     {
       intakeSpeed = 1;
       intakeAmps = INTAKE_CURRENT;
-      //m_intakeMotor.Set(1.0);
     }else
     if (m_stick.GetBButton())
     {
       intakeSpeed = -1;
       intakeAmps = INTAKE_CURRENT;
-      //m_intakeMotor.Set(-1.0);
     }else
     {
       intakeSpeed = 0;
       intakeAmps = 0;
-      //m_intakeMotor.Set(0.0);
     }
 
     if (m_stick.GetAButton())
     {
-      armSpeed = -0.4;
-      armPos = -10;
-      //m_armMotor.Set(-0.4);
-    } else
-    if (m_stick.GetYButton())
+      m_armMotor.SetSmartCurrentLimit(40);
+      armSpeed = -0.50;
+      ArmPos = -10;
+    } else if (m_stick.GetYButton())
     {
-      armSpeed = 0.4;
-      armPos = -10;
-      //m_armMotor.Set(0.4);
+      m_armMotor.SetSmartCurrentLimit(40);
+      armSpeed = 0.50;
+      ArmPos = -10;
     } else
     {
-      armSpeed = 0.0;
-      armPos = -10;
-      //m_armMotor.Set(0.0);
-    } 
-
-    
-    if(armPos < 0){    
-      SetArmMotor(armSpeed);
-    } else{
-      int currArmPos = m_armEncoder.GetPosition();
-      if(currArmPos < armPos)
-      {
-        SetArmMotor((armPos - currArmPos)/30);
-      }else{
-        SetArmMotor(-(currArmPos - armPos)/30);
+      if(desiredArmPos < 0){
+        desiredArmPos = m_armEncoder.GetPosition();
+        m_armMotor.SetSmartCurrentLimit(20);
       }
     }
+
+    if (m_stick.GetYButtonReleased() || m_stick.GetAButtonReleased())
+    {
+      desiredArmPos = m_armEncoder.GetPosition();
+      frc::SmartDashboard::PutString(" Button ", "Released");
+    }
+    
+    if(ArmPos == -10){      // neg arm postion means manual control
+      SetArmMotor(armSpeed);
+    } else
+    {        
+      currArmPos = m_armEncoder.GetPosition();
+      if(currArmPos > desiredArmPos)
+      {
+        SetArmMotor(-(currArmPos - desiredArmPos)/20); //Proportional done the old fashion way
+        //Yellow();
+      }else{
+        SetArmMotor((desiredArmPos - currArmPos)/20);
+        //Blue();
+      }
+    }
+    
     SetIntakeMotor(intakeSpeed, intakeAmps);
-    frc::SmartDashboard::PutNumber(" Pitch2 ", gyro->GetPitch());
-    //frc::SmartDashboard::PutData(" gyro ", gyro);
-    frc::SmartDashboard::PutNumber("arm pos", m_armEncoder.GetPosition());
-    frc::SmartDashboard::PutNumber(" roll ", gyro->GetRoll());
-    frc::SmartDashboard::PutNumber(" Y ", gyro->GetRawGyroY());
-    frc::SmartDashboard::PutNumber(" Limit ", ArmLimit.Get());
+    frc::SmartDashboard::PutNumber("ArmPos", ArmPos);
   }
 
   void SetArmMotor(double speed)
@@ -238,17 +318,211 @@ public:
     frc::SmartDashboard::PutNumber("arm Temp", m_armMotor.GetMotorTemperature());  
   }
 
+// spin intake motor between (-1 and 1) and current between 0 and 40
   void SetIntakeMotor(double speed, int amps)
   {
     m_intakeMotor.Set(speed);
     m_intakeMotor.SetSmartCurrentLimit(amps);
     frc::SmartDashboard::PutNumber("intake Speed", speed);  
     frc::SmartDashboard::PutNumber("inake Amps ", m_intakeMotor.GetOutputCurrent());
-    frc::SmartDashboard::PutNumber("intake Temp", m_intakeMotor.GetMotorTemperature());  
-  
+    frc::SmartDashboard::PutNumber("intake Temp", m_intakeMotor.GetMotorTemperature());    
   }
 
+  void AutoHighCubeBalance()
+  {
+    if (m_autoTimer.Get() > 0_s && m_autoTimer.Get() < 1_s)
+    {
+      desiredArmPos = 30;  //Extend arm high goal
+    } // bang less hard
+    else if (m_autoTimer.Get() > 1_s && m_autoTimer.Get() < 2_s)
+    {
+      desiredArmPos = 40;  //Extend arm high goal
+    }
+    /*else if (m_autoTimer.Get() > 2_s && m_autoTimer.Get() < 4_s)
+    {
+      m_robotDrive.ArcadeDrive(0.5, 0);  //drive forward
+    }*/
+    else if (m_autoTimer.Get() > 2_s && m_autoTimer.Get() < 4_s)
+    {
+      m_robotDrive.ArcadeDrive(0.0, 0);  //drive stop
+      SetIntakeMotor(-1, 30);  //output cube
+    }
+    else if (m_autoTimer.Get() > 4_s && m_autoTimer.Get() < 5_s)
+    {
+      desiredArmPos = 0; // lower arm 
+      //m_robotDrive.ArcadeDrive(-0.50, 0);  //drive backwards
+      SetIntakeMotor(0, 30);  //Stop intake
+    }
+    else if (m_autoTimer.Get() > 5_s && m_autoTimer.Get() < 15_s)
+    //8 is balance, 10 is not balance
+    {
+      AutoBalanceBackward();  //charging station
+    }
+  }
+
+void AutoHighCubeLeave()
+  {
+    if (m_autoTimer.Get() > 0_s && m_autoTimer.Get() < 1_s)
+    {
+      desiredArmPos = 30;  //Extend arm high goal
+    } // bang less hard
+    else if (m_autoTimer.Get() > 1_s && m_autoTimer.Get() < 2_s)
+    {
+      desiredArmPos = 40;  //Extend arm high goal
+    }
+    /*else if (m_autoTimer.Get() > 2_s && m_autoTimer.Get() < 4_s)
+    {
+      m_robotDrive.ArcadeDrive(0.5, 0);  //drive forward
+    }*/
+    else if (m_autoTimer.Get() > 2_s && m_autoTimer.Get() < 4_s)
+    {
+      m_robotDrive.ArcadeDrive(0.0, 0);  //drive stop
+      SetIntakeMotor(-1, 30);  //output cube
+    }
+    else if (m_autoTimer.Get() > 4_s && m_autoTimer.Get() < 8_s)
+    {
+      desiredArmPos = 0; // lower arm 
+      m_robotDrive.ArcadeDrive(-0.55, 0);  //drive backwards
+      SetIntakeMotor(0, 30);  //Stop intake
+    }
+    else if (m_autoTimer.Get() > 8_s && m_autoTimer.Get() < 15_s)
+    {
+      m_robotDrive.ArcadeDrive(0.0, 0);  //stop
+    }
+  }
+
+void AutoHighConeBalance()
+  {
+    if (m_autoTimer.Get() > 0_s && m_autoTimer.Get() < 1_s)
+    {
+      desiredArmPos = 30;  //Extend arm high goal
+    } // bang less hard
+    else if (m_autoTimer.Get() > 1_s && m_autoTimer.Get() < 2_s)
+    {
+      desiredArmPos = 40;  //Extend arm high goal
+    }
+    /*else if (m_autoTimer.Get() > 2_s && m_autoTimer.Get() < 3_s)
+    {
+      m_robotDrive.ArcadeDrive(0.5, 0);  //drive forward 
+    } */
+    else if (m_autoTimer.Get() > 2_s && m_autoTimer.Get() < 4_s)
+    {
+      m_robotDrive.ArcadeDrive(0.0, 0);  //drive stop
+      SetIntakeMotor(1, 30);  //output cone
+    }
+    else if (m_autoTimer.Get() > 4_s && m_autoTimer.Get() < 5_s)
+    {
+      desiredArmPos = 0; // lower arm 
+      m_robotDrive.ArcadeDrive(-0.50, 0);  //drive backwards
+      SetIntakeMotor(0, 30);  //Stop intake
+    }
+    else if (m_autoTimer.Get() > 5_s && m_autoTimer.Get() < 15_s)
+    {
+      AutoBalanceBackward();  //charging station
+    }
+  }
+
+/// @brief 
+void AutoHighConeLeave()
+  {
+    if (m_autoTimer.Get() > 0_s && m_autoTimer.Get() < 1_s)
+    {
+      desiredArmPos = 30;  //Extend arm high goal
+    } // bang less hard
+    else if (m_autoTimer.Get() > 1_s && m_autoTimer.Get() < 2_s)
+    {
+      desiredArmPos = 40;  //Extend arm high goal
+    }
+    /*else if (m_autoTimer.Get() > 2_s && m_autoTimer.Get() < 4_s)
+    {
+      m_robotDrive.ArcadeDrive(0.5, 0);  //drive forward
+    }*/
+    else if (m_autoTimer.Get() > 2_s && m_autoTimer.Get() < 4_s)
+    {
+      m_robotDrive.ArcadeDrive(0.0, 0);  //drive stop
+      SetIntakeMotor(1, 30);  //output cone
+    }
+    else if (m_autoTimer.Get() > 4_s && m_autoTimer.Get() < 7_s)
+    {
+      desiredArmPos = 0; // lower arm
+      m_robotDrive.ArcadeDrive(-0.60, 0);  //drive backwards 
+      SetIntakeMotor(0, 30);  //Stop intake
+    }
+    else if (m_autoTimer.Get() > 7_s && m_autoTimer.Get() < 15_s)
+    {
+       m_robotDrive.ArcadeDrive(0.0, 0);  //stop
+    }
+  }
+
+  void AutoBalanceForward()
+  {
+    // Pitch Values Between 85 & 95 Is Balanced. 
+    if (gyro->GetPitch() < -5.0) 
+      m_robotDrive.ArcadeDrive(0.55, 0);
+    else if (gyro->GetPitch() > 5.0)
+      m_robotDrive.ArcadeDrive(-0.55, 0);
+    else 
+      m_robotDrive.ArcadeDrive(0, 0);
+    // Courtesy Of Caleb Taylor  
+  }
+
+  void AutoBalanceBackward()
+  {
+    // Pitch Values Between 85 & 95 Is Balanced. 
+    if (gyro->GetPitch() < -5.0) 
+      m_robotDrive.ArcadeDrive(-0.55, 0);
+    else if (gyro->GetPitch() > 5.0)
+      m_robotDrive.ArcadeDrive(0.55, 0);
+    else 
+      m_robotDrive.ArcadeDrive(0, 0);
+    // Courtesy Of Caleb Taylor  
+  }
+
+  void Red(){
+    for(int i = 0; i < numLEDs; i++) {
+      LedBuff[i].SetRGB(255, 0, 0);
+    }
+    Led0.SetData(LedBuff);
+  }
+  void Green(){
+    for(int i = 0; i < numLEDs; i++) {
+      LedBuff[i].SetRGB(0,255, 0);
+    }
+    Led0.SetData(LedBuff);
+  }
+  void Blue(){
+    for(int i = 0; i < numLEDs; i++) {
+      LedBuff[i].SetRGB(0, 0, 255);
+    }
+    Led0.SetData(LedBuff);
+  }
+  /*void Yellow(){
+    for(int i = 0; i < numLEDs; i++) {
+      LedBuff[i].SetRGB(255, 255, 0);
+    }
+    Led0.SetData(LedBuff);
+  }
+  void Magenta(){
+    for(int i = 0; i < numLEDs; i++) {
+      LedBuff[i].SetRGB(255, 0, 255);
+    }
+    Led0.SetData(LedBuff);
+  }
+  void Cyan(){
+    for(int i = 0; i < numLEDs; i++) {
+      LedBuff[i].SetRGB(0, 255, 255);
+    }
+    Led0.SetData(LedBuff);
+  }
+  void White(){
+    for(int i = 0; i < numLEDs; i++) {
+      LedBuff[i].SetRGB(255, 255, 255);
+    }
+    Led0.SetData(LedBuff);
+  }*/
+
 }
+
 #ifndef RUNNING_FRC_TESTS
 ;
 int main() {
